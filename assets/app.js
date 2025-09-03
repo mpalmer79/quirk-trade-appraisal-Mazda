@@ -144,6 +144,55 @@ function bootstrapCommonMakesIfEmpty() {
   for (const m of common) makeSel.add(new Option(m, m));
 }
 
+/* -------------------- VIN decode trigger (hoisted) -------------------- */
+async function doDecode() {
+  const vinInput = $("#vin");
+  const decodeBtn = $("#decodeVinBtn");
+
+  const vin = (vinInput && vinInput.value || "").trim().toUpperCase();
+  if (!validVin(vin)) {
+    showToast("Enter a valid 17-character VIN.");
+    if (vinInput) vinInput.focus();
+    return;
+  }
+
+  const btnText = decodeBtn ? decodeBtn.textContent : "";
+  if (decodeBtn) { decodeBtn.disabled = true; decodeBtn.textContent = "Decoding…"; }
+  showToast("");
+
+  try {
+    const { year, make, model, trim } = await decodeVin(vin);
+
+    if (year) setSelectValue("#year", year);
+    if (make) setSelectValue("#make", make);
+
+    if (make && year) {
+      await loadModelsFor(make, year);
+    }
+    if (model) setSelectValue("#model", model);
+    const trimInput = $("#trim");
+    if (trim && trimInput) trimInput.value = trim || "";
+
+    if (!year && !make && !model && !trim) {
+      showToast("VIN decoded, but details are limited. Please fill fields manually.");
+    } else {
+      showToast("");
+    }
+  } catch (e) {
+    console.error("VIN decode failed:", e);
+    showToast("Could not decode VIN. Please fill fields manually.");
+  } finally {
+    if (decodeBtn) { decodeBtn.disabled = false; decodeBtn.textContent = btnText; }
+  }
+}
+
+/* A single debounced handler we can safely remove/add */
+const vinInputHandler = debounce(() => {
+  const vinEl = $("#vin");
+  const v = (vinEl?.value || "").toUpperCase().replace(/\s+/g, "");
+  if (validVin(v)) doDecode();
+}, 300);
+
 /* -------------------- Wire up events on DOM ready -------------------- */
 document.addEventListener("DOMContentLoaded", () => {
   // Bootstrap selects if needed
@@ -152,8 +201,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const yearSel = $("#year");
   const makeSel = $("#make");
-  const modelSel = $("#model");
-  const trimInput = $("#trim");
   const vinInput = $("#vin");
   const decodeBtn = $("#decodeVinBtn");
 
@@ -164,56 +211,13 @@ document.addEventListener("DOMContentLoaded", () => {
     makeSel.addEventListener("change", refreshModels);
   }
 
-  async function doDecode() {
-    const vin = (vinInput && vinInput.value || "").trim().toUpperCase();
-    if (!validVin(vin)) {
-      showToast("Enter a valid 17-character VIN.");
-      if (vinInput) vinInput.focus();
-      return;
-    }
-
-    const btnText = decodeBtn ? decodeBtn.textContent : "";
-    if (decodeBtn) { decodeBtn.disabled = true; decodeBtn.textContent = "Decoding…"; }
-    showToast("");
-
-    try {
-      const { year, make, model, trim } = await decodeVin(vin);
-
-      if (year) setSelectValue("#year", year);
-      if (make) setSelectValue("#make", make);
-
-      if (make && year) {
-        await loadModelsFor(make, year);
-      }
-      if (model) setSelectValue("#model", model);
-      if (trim && trimInput) trimInput.value = trim || "";
-
-      if (!year && !make && !model && !trim) {
-        showToast("VIN decoded, but details are limited. Please fill fields manually.");
-      } else {
-        showToast("");
-      }
-    } catch (e) {
-      console.error("VIN decode failed:", e);
-      showToast("Could not decode VIN. Please fill fields manually.");
-    } finally {
-      if (decodeBtn) { decodeBtn.disabled = false; decodeBtn.textContent = btnText; }
-    }
-  }
-
   // Button click
   if (decodeBtn) decodeBtn.addEventListener("click", doDecode);
 
   // Auto-decode when VIN becomes valid (17 chars)
   if (vinInput) {
-    let last = "";
-    vinInput.addEventListener("input", debounce(() => {
-      const v = (vinInput.value || "").toUpperCase().replace(/\s+/g, "");
-      if (v !== last) {
-        last = v;
-        if (validVin(v)) doDecode();
-      }
-    }, 300));
+    vinInput.removeEventListener("input", vinInputHandler); // guard against double-bind
+    vinInput.addEventListener("input", vinInputHandler);
   }
 });
 
@@ -339,22 +343,31 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 })();
-/* -------------------- Clear Form wiring -------------------- */
+
+/* -------------------- Clear Form wiring (patched) -------------------- */
 document.addEventListener("DOMContentLoaded", () => {
   const form = document.getElementById("tradeForm");
   const clearBtn = document.getElementById("clearBtn");
   if (clearBtn && form) {
-    clearBtn.addEventListener("click", () => {
+    clearBtn.addEventListener("click", (e) => {
+      e.preventDefault();
       form.reset();
 
+      // Reset selects & trigger model refresh clearing
       ["year","make","model","trim"].forEach(id => {
         const el = document.getElementById(id);
         if (el) {
-          el.selectedIndex = 0;
+          if (id === "model") {
+            // ensure model list shows default placeholder again
+            el.innerHTML = `<option value="" data-i18n="selectModel">Select Model</option>`;
+          } else {
+            el.selectedIndex = 0;
+          }
           el.dispatchEvent(new Event("change"));
         }
       });
 
+      // Clear file inputs and previews
       ["photoExterior","photoInterior","photoDash","photoDamage"].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.value = "";
@@ -364,16 +377,27 @@ document.addEventListener("DOMContentLoaded", () => {
         if (el) el.innerHTML = "";
       });
 
+      // Clear helper/status text
       ["toast","vinStatus","modelStatus","phoneHint"].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.textContent = "";
       });
 
+      // Clear hidden tracking fields
       ["referrer","landingPage","utmSource","utmMedium","utmCampaign","utmTerm","utmContent","phoneRaw"].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.value = "";
       });
 
+      // Ensure VIN input is emptied and VIN auto-decode listener is reattached
+      const vinEl = document.getElementById("vin");
+      if (vinEl) {
+        vinEl.value = "";
+        vinEl.removeEventListener("input", vinInputHandler); // prevent duplicate handlers
+        vinEl.addEventListener("input", vinInputHandler);
+      }
+
+      // Re-apply i18n if your page uses a function for it
       if (typeof applyI18n === "function") {
         const lang = sessionStorage.getItem("quirk_lang") || "en";
         applyI18n(lang);
