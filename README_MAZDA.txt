@@ -1,2 +1,2 @@
-Quirk Mazda Trade Tool - Deployment Notes
+Quirk Mazda Trade Tool 
 ========================================
