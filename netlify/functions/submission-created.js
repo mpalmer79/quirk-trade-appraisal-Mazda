@@ -47,8 +47,7 @@ export async function handler(event) {
       attachments = await processAttachments(files);
     } catch (error) {
       console.error("Failed to process attachments:", error);
-      // Decide if you still want to send the email without attachments
-      // For now, we'll continue and just log the error.
+      // We'll continue and just log the error.
     }
   }
 
@@ -67,7 +66,6 @@ export async function handler(event) {
       attachments: attachments.length ? attachments : undefined,
     });
   } catch (error) {
-    // Log detailed error information from SendGrid
     console.error("SendGrid API Error:", JSON.stringify(error.response?.body || error.message, null, 2));
     return { statusCode: 502, body: "Failed to send email via provider." };
   }
@@ -81,24 +79,35 @@ export async function handler(event) {
 
 /**
  * Creates the subject, HTML body, and text body for the email.
+ * Ensures "SalesConsultant" appears at the very bottom of the table if present.
  * @param {object} data - The form submission data.
  * @returns {{subject: string, htmlBody: string, textBody: string}}
  */
 function createEmailContent(data) {
-  const included = new Set(["form-name", "company", "bot-field", "honeypot"]);
+  // Keys to skip in the main sorted list (we'll append SalesConsultant at the end)
+  const skip = new Set(["form-name", "company", "bot-field", "honeypot", "salesConsultant"]);
+
   const rows = [];
   const hasVal = (v) => v !== undefined && v !== null && String(v).trim() !== "";
 
-  // Sort keys for consistent email layout
+  // Sort keys for consistent email layout (excluding skipped)
   Object.keys(data).sort().forEach(k => {
-    if (included.has(k)) return;
+    if (skip.has(k)) return;
     const v = data[k];
     if (hasVal(v)) {
       rows.push([k, Array.isArray(v) ? v.join(", ") : String(v)]);
     }
   });
 
-  const htmlEscape = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  // Append SalesConsultant explicitly at the very bottom (if provided)
+  if (hasVal(data.salesConsultant)) {
+    rows.push(["SalesConsultant", String(data.salesConsultant)]);
+  }
+
+  const htmlEscape = (s) => String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 
   const htmlBody = `
     <h2 style="margin:0 0 12px 0;font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial;">New Trade-In Lead</h2>
@@ -121,7 +130,7 @@ function createEmailContent(data) {
 /**
  * Fetches uploaded files and prepares them for SendGrid attachments.
  * @param {Array<object>} files - Array of file objects from Netlify.
- * @returns {Promise<Array<object>>} - A promise that resolves to an array of SendGrid attachment objects.
+ * @returns {Promise<Array<object>>}
  */
 async function processAttachments(files) {
   const MAX_ATTACH = 10;
@@ -154,9 +163,6 @@ async function processAttachments(files) {
       totalSize += size;
 
       return {
-        // *** THIS IS THE FIX ***
-        // The original code had `Buffer.from(buffer)`, which is incorrect.
-        // `buffer` is already a Buffer, so we just need to Base64-encode it.
         content: buffer.toString("base64"),
         filename: file.filename,
         type: file.type || "application/octet-stream",
@@ -169,7 +175,7 @@ async function processAttachments(files) {
   });
 
   const results = await Promise.all(fetchPromises);
-  return results.filter(Boolean); // Filter out any nulls from failed fetches/skips
+  return results.filter(Boolean);
 }
 
 /**
@@ -195,7 +201,6 @@ async function triggerBackupWebhook(data, files) {
       body: JSON.stringify(lead),
     });
   } catch (error) {
-    // Log but do not fail the function if the backup fails
     console.warn("Backup webhook failed:", error);
   }
 }
