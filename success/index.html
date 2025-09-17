@@ -9,10 +9,11 @@
 <body
   style="
     min-height:100vh;
-    /* Subtle watermark background */
+    /* White film + lot image; screen blend brightens the photo */
     background:
-      linear-gradient(rgba(0,0,0,.18), rgba(0,0,0,.18)),
+      linear-gradient(rgba(255,255,255,.16), rgba(255,255,255,.16)),
       url('/assets/quirk-lot.png') center / cover no-repeat fixed;
+    background-blend-mode: screen, normal;
   "
 >
   <main style="max-width:720px;margin:40px auto;background:#fff;padding:24px;
