@@ -5,19 +5,54 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title data-i18n="successTitle">Thanks! - Quirk Mazda</title>
   <link rel="stylesheet" href="/assets/styles.css" />
+
+  <style>
+    /* Watermark background — light white overlay so the photo shows through */
+    body.success {
+      min-height: 100vh;
+      background:
+        /* ~60% image strength via 40% white overlay */
+        linear-gradient(rgba(255,255,255,.40), rgba(255,255,255,.40)),
+        url('/assets/quirk-lot.png') center / cover no-repeat fixed;
+    }
+
+    /* Default card (mobile-first) */
+    main.success-card {
+      max-width: 720px;
+      margin: 40px auto;
+      background: #fff;                     /* overridden in media queries */
+      padding: 24px;
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+
+    /* MOBILE ONLY: small gap from top & 50% white card */
+    @media (max-width: 640px) {
+      main.success-card {
+        margin: 12px auto 24px;             /* little breathing room at top */
+        background: rgba(255,255,255,0.50); /* 50% white */
+        backdrop-filter: blur(1px);         /* subtle polish where supported */
+      }
+    }
+
+    /* DESKTOP/TABLET: center card both ways & 50% white */
+    @media (min-width: 641px) {
+      body.success {
+        display: flex;
+        align-items: center;                /* vertical centering */
+        justify-content: center;            /* horizontal centering */
+        padding: 40px 16px;                 /* page breathing room */
+      }
+      main.success-card {
+        margin: 0;
+        background: rgba(255,255,255,0.50); /* 50% white */
+        backdrop-filter: blur(1px);
+      }
+    }
+  </style>
 </head>
-<body
-  style="
-    min-height:100vh;
-    /* White film + lot image; screen blend brightens the photo */
-    background:
-      linear-gradient(rgba(255,255,255,.16), rgba(255,255,255,.16)),
-      url('/assets/quirk-lot.png') center / cover no-repeat fixed;
-    background-blend-mode: screen, normal;
-  "
->
-  <main style="max-width:720px;margin:40px auto;background:#fff;padding:24px;
-               border-radius:12px;box-shadow:0 4px 10px rgba(0,0,0,0.1)">
+<body class="success">
+  <main class="success-card">
     <h1 style="text-align:center;margin:0 0 10px;color:#004a2f" data-i18n="successHeading">
       Thank you!
     </h1>
@@ -44,7 +79,7 @@
     </div>
   </main>
 
-  <!-- Load the same app.js to enable Spanish translation -->
+  <!-- Spanish toggle strings, etc. -->
   <script src="/assets/app.js"></script>
 </body>
 </html>
