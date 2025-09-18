@@ -34,7 +34,7 @@
       margin-top: 18px;
     }
 
-    /* MOBILE ONLY: raise card a bit & stack buttons full-width */
+    /* MOBILE ONLY: raise card a bit & stack buttons perfectly centered */
     @media (max-width: 640px) {
       main.success-card {
         margin: 12px auto 24px;             /* little breathing room at top */
@@ -42,13 +42,15 @@
         backdrop-filter: blur(1px);         /* subtle polish where supported */
       }
       .btnrow {
-        flex-direction: column;             /* stack buttons like CDJR Marshfield */
+        flex-direction: column;             /* stack like CDJR Marshfield */
         align-items: stretch;
       }
       .btnrow a {
         display: block;
-        width: 100%;                        /* full-width pills */
+        width: 100%;
+        box-sizing: border-box;
         text-align: center;
+        margin: 0 !important;               /* kill any theme margins that push right */
       }
     }
 
